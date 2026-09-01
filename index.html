@@ -385,6 +385,11 @@ form button{
   cursor:pointer;
   font:10px "DM Mono",monospace;
 }
+form button:disabled{
+  opacity:.45;
+  cursor:wait;
+}
+
 .form-message{
   min-height:15px;
   margin-top:10px;
@@ -674,17 +679,66 @@ footer{
 </footer>
 
 <script>
+/* NOVA AI / Supabase early-access connection */
+const SUPABASE_URL = 'https://jfgxfubjdogpuxhstziw.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_-jmcpO-iG72gRmRmPwT5-Q_bckTJxa4';
+
 const form = document.getElementById('waitlist');
 const message = document.getElementById('formMessage');
+const emailInput = document.getElementById('email');
+const submitButton = form.querySelector('button');
 
-form.addEventListener('submit', (event) => {
+form.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const email = document.getElementById('email').value.trim();
-  if (!email) return;
-  message.textContent = 'EARLY ACCESS REQUEST RECEIVED.';
-  form.reset();
-});
 
+  const email = emailInput.value.trim().toLowerCase();
+
+  if (!email) return;
+
+  if (!emailInput.checkValidity()) {
+    message.textContent = 'PLEASE ENTER A VALID EMAIL ADDRESS.';
+    return;
+  }
+
+  submitButton.disabled = true;
+  submitButton.textContent = 'JOINING...';
+  message.textContent = 'CONNECTING TO NOVA AI...';
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/subscribers`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_PUBLISHABLE_KEY,
+        'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ email })
+    });
+
+    if (response.ok) {
+      message.textContent = 'EARLY ACCESS REQUEST RECEIVED.';
+      form.reset();
+    } else if (response.status === 409) {
+      message.textContent = "YOU'RE ALREADY ON THE NOVA AI LIST.";
+    } else {
+      let errorText = '';
+      try {
+        const error = await response.json();
+        errorText = error.message || error.details || '';
+      } catch (_) {}
+
+      console.error('NOVA AI subscription error:', response.status, errorText);
+      message.textContent = 'SOMETHING WENT WRONG. PLEASE TRY AGAIN.';
+    }
+  } catch (error) {
+    console.error('NOVA AI connection error:', error);
+    message.textContent = 'CONNECTION ERROR. PLEASE TRY AGAIN.';
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = 'JOIN ↗';
+  }
+});
 </script>
 </body>
 </html>
