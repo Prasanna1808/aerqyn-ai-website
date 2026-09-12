@@ -396,7 +396,31 @@ form.addEventListener('submit', async (event) => {
     });
 
     if (response.ok) {
-      message.textContent = 'EARLY ACCESS REQUEST RECEIVED.';
+      // Save the signup first, then send the welcome email through Brevo.
+      try {
+        const emailResponse = await fetch(
+          `${SUPABASE_URL}/functions/v1/send-welcome-email`,
+          {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_PUBLISHABLE_KEY,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email })
+          }
+        );
+
+        if (emailResponse.ok) {
+          message.textContent = 'EARLY ACCESS CONFIRMED. CHECK YOUR EMAIL.';
+        } else {
+          console.error('Welcome email error:', await emailResponse.text());
+          message.textContent = 'EARLY ACCESS REQUEST RECEIVED.';
+        }
+      } catch (emailError) {
+        console.error('Welcome email connection error:', emailError);
+        message.textContent = 'EARLY ACCESS REQUEST RECEIVED.';
+      }
+
       form.reset();
     } else if (response.status === 409) {
       message.textContent = "YOU'RE ALREADY ON THE AERQYN AI LIST.";
